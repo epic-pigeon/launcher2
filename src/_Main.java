@@ -5,19 +5,22 @@ import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import sun.misc.Regexp;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Pattern;
 
 public class _Main {
     private static final String GIT_ADDRESS = "https://github.com/lerivi/CheckCheckerDesktop";
@@ -55,12 +58,14 @@ public class _Main {
 
 
     public static void main(String[] args) throws GitAPIException, IOException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InterruptedException {
-        /*Git.cloneRepository().setURI(GIT_ADDRESS).setCredentialsProvider(
+        if (!new File("dir").exists()) Git.cloneRepository().setURI(GIT_ADDRESS).setCredentialsProvider(
                 new UsernamePasswordCredentialsProvider("nikita202", "Nerfo202")
-        ).setDirectory(Paths.get("dir/").toFile()).call();*/
+        ).setDirectory(Paths.get("dir/").toFile()).call();
+        File file = new File("dir/src/" + new Collection<>(MAIN_CLASS.split("\\.")).join("/") + ".java");
+        replaceAllInFile(file, "getClass\\(\\)\\.getResource\\(\"/([^\n\"]*)\"\\)", "Thread.currentThread().getContextClassLoader().getResource(\"$1\")");
         Collection<String> result = compile(new File("dir/src/"));
         new File("dirOut").mkdirs();
-        String command = System.getProperty("java.home") + "/../bin/javac -d dirOut -cp json-simple-1.1.jar:. " + result.join(" ");
+        String command = System.getProperty("java.home") + "/../bin/javac -nowarn -encoding UTF-8 -d dirOut -cp json-simple-1.1.jar;. " + result.join(" ");
         System.out.println(command);
         Process process = Runtime.getRuntime().exec(command);
         captureOutput(process);
@@ -71,7 +76,7 @@ public class _Main {
                 URLClassLoader urlClassLoader = new URLClassLoader(
                         new URL[]{
                                 new File("dirOut/").toURI().toURL(),
-                                new File("dir/").toURI().toURL(),
+                                new File("dir/src/").toURI().toURL(),
                                 new File("json-simple-1.1.jar").toURI().toURL()
                         }
                 );
@@ -90,7 +95,7 @@ public class _Main {
         }).start();
         countDownLatch.await();
     }
-    private static Collection<String> compile(File directory) {
+    private static Collection<String> compile(File directory) throws IOException {
         assert directory.isDirectory();
         Collection<String> result = new Collection<>();
         for (File file: directory.listFiles()) {
@@ -139,5 +144,14 @@ public class _Main {
         stdout = new InputStreamConsumer(p.getInputStream(), System.out);
         errout.start();
         stdout.start();
+    }
+    private static void replaceAllInFile(File file, String regexp, String replacement) throws IOException {
+        System.out.println(Paths.get(file.getAbsolutePath()));
+        byte[] data = Files.readAllBytes(Paths.get(file.getAbsolutePath()));
+        System.out.println(data.length);
+        String result = new String(data, StandardCharsets.UTF_8);
+        result = result.replaceAll(regexp, replacement);
+        System.out.println(result);
+        new FileWriter(file.getAbsolutePath()).write(result);
     }
 }
